@@ -53,7 +53,7 @@ const int kScratchBufferLength = 8192;
     _scratchBuffer = (float**)malloc(sizeof(float*) * _clientFormat.mChannelsPerFrame);
     assert(_scratchBuffer);
     for ( int i=0; i<_clientFormat.mChannelsPerFrame; i++ ) {
-        _scratchBuffer[i] = malloc(sizeof(float) * kScratchBufferLength);
+        _scratchBuffer[i] = (float *)malloc(sizeof(float) * kScratchBufferLength);
         assert(_scratchBuffer[i]);
     }
     
@@ -78,7 +78,7 @@ const int kScratchBufferLength = 8192;
     float **scratchBuffer = (float**)malloc(sizeof(float*) * clientFormat.mChannelsPerFrame);
     assert(scratchBuffer);
     for ( int i=0; i<clientFormat.mChannelsPerFrame; i++ ) {
-        scratchBuffer[i] = malloc(sizeof(float) * kScratchBufferLength);
+        scratchBuffer[i] = (float *)malloc(sizeof(float) * kScratchBufferLength);
         assert(scratchBuffer[i]);
     }
     

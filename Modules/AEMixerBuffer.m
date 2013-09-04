@@ -45,7 +45,10 @@ static inline BOOL _checkResult(OSStatus result, const char *operation, const ch
 }
 
 #ifdef DEBUG
-#define dprintf(THIS, n, __FORMAT__, ...) {if ( THIS->_debugLevel >= (n) ) { printf("<AEMixerBuffer %p>: "__FORMAT__ "\n", THIS, ##__VA_ARGS__); }}
+#define dprintf(THIS, n, __FORMAT__, ...) {\
+    if ( THIS->_debugLevel >= (n) ) { \
+        printf("<AEMixerBuffer %p>: " __FORMAT__ "\n", THIS, ##__VA_ARGS__);  \
+}}
 #else
 #define dprintf(THIS, n, __FORMAT__, ...)
 #endif
@@ -313,7 +316,7 @@ static OSStatus fillComplexBufferInputProc(AudioConverterRef             inAudio
                                            AudioBufferList               *ioData,
                                            AudioStreamPacketDescription  **outDataPacketDescription,
                                            void                          *inUserData) {
-    struct fillComplexBufferInputProc_t *arg = inUserData;
+    struct fillComplexBufferInputProc_t *arg = (struct fillComplexBufferInputProc_t *)inUserData;
     for ( int i=0; i<ioData->mNumberBuffers; i++ ) {
         ioData->mBuffers[i].mData = arg->bufferList->mBuffers[i].mData;
         ioData->mBuffers[i].mDataByteSize = arg->bufferList->mBuffers[i].mDataByteSize;
@@ -403,11 +406,14 @@ void AEMixerBufferDequeue(AEMixerBuffer *THIS, AudioBufferList *bufferList, UInt
         return;
     }
     
-    // We'll advance the buffer list pointers as we add audio - save the original buffer list to restore later
-    char savedBufferListSpace[sizeof(AudioBufferList)+(bufferList->mNumberBuffers-1)*sizeof(AudioBuffer)];
-    AudioBufferList *savedBufferList = (AudioBufferList*)savedBufferListSpace;
-    memcpy(savedBufferList, bufferList, sizeof(savedBufferListSpace));
-
+    // We'll advance the buffer list pointers as we add audio - save the originals to restore later
+    void *savedmData[bufferList ? bufferList->mNumberBuffers : 1];
+    if ( bufferList ) {
+        for ( int i=0; i<bufferList->mNumberBuffers; i++ ) {
+            savedmData[i] = bufferList->mBuffers[i].mData;
+        }
+    }
+    
     THIS->_automaticSingleSourceDequeueing = YES;
     int framesToGo = MIN(*ioLengthInFrames, bufferList->mBuffers[0].mDataByteSize / THIS->_clientFormat.mBytesPerFrame);
     
@@ -456,9 +462,14 @@ void AEMixerBufferDequeue(AEMixerBuffer *THIS, AudioBufferList *bufferList, UInt
         
         if ( THIS->_audioConverter ) {
             // Convert output into client format
+            struct fillComplexBufferInputProc_t proc{
+                .bufferList = intermediateBufferList,
+                .frames = frames
+            };
             OSStatus result = AudioConverterFillComplexBuffer(THIS->_audioConverter, 
-                                                              fillComplexBufferInputProc, 
-                                                              &(struct fillComplexBufferInputProc_t) { .bufferList = intermediateBufferList, .frames = frames }, 
+                                                              fillComplexBufferInputProc,
+                                                              &proc,
+                                                              //&(struct fillComplexBufferInputProc_t) { .bufferList = intermediateBufferList, .frames = frames },
                                                               &frames, 
                                                               bufferList, 
                                                               NULL);
@@ -488,7 +499,12 @@ void AEMixerBufferDequeue(AEMixerBuffer *THIS, AudioBufferList *bufferList, UInt
     }
     
     // Restore buffers
-    memcpy(bufferList, savedBufferList, sizeof(savedBufferListSpace));
+    if ( bufferList ) {
+        for ( int i=0; i<bufferList->mNumberBuffers; i++ ) {
+            bufferList->mBuffers[i].mData = savedmData[i];
+            bufferList->mBuffers[i].mDataByteSize = *ioLengthInFrames * THIS->_clientFormat.mBytesPerFrame;
+        }
+    }
 }
 
 
@@ -539,6 +555,11 @@ void AEMixerBufferDequeueSingleSource(AEMixerBuffer *THIS, AEMixerBufferSource s
     }
     
     if ( !source ) {
+        if ( bufferList ) {
+            for ( int i=0; i<bufferList->mNumberBuffers; i++ ) {
+                bufferList->mBuffers[i].mDataByteSize = THIS->_clientFormat.mBytesPerFrame * *ioLengthInFrames;
+            }
+        }
         return;
     }
     
@@ -712,6 +733,12 @@ void AEMixerBufferDequeueSingleSource(AEMixerBuffer *THIS, AEMixerBufferSource s
             } else {
                 TPCircularBufferDequeueBufferListFrames(&source->buffer, ioLengthInFrames, bufferList, NULL, &audioDescription);
             }
+        }
+    }
+    
+    if ( bufferList ) {
+        for ( int i=0; i<bufferList->mNumberBuffers; i++ ) {
+            bufferList->mBuffers[i].mDataByteSize = *ioLengthInFrames * audioDescription.mBytesPerFrame;
         }
     }
     
@@ -1231,7 +1258,7 @@ static OSStatus sourceInputCallback(void *inRefCon, AudioUnitRenderActionFlags *
 - (void)pollActionBuffer {
     while ( 1 ) {
         int32_t availableBytes;
-        action_t *action = TPCircularBufferTail(&_mainThreadActionBuffer, &availableBytes);
+        action_t *action = (action_t *)TPCircularBufferTail(&_mainThreadActionBuffer, &availableBytes);
         if ( !action ) break;
         action->action(self, action->userInfo);
         TPCircularBufferConsume(&_mainThreadActionBuffer, sizeof(action_t));
@@ -1323,7 +1350,7 @@ static void prepareNewSource(AEMixerBuffer *THIS, AEMixerBufferSource sourceID) 
 
 static void prepareSkipFadeBufferForSource(AEMixerBuffer *THIS, source_t* source) {
     AudioStreamBasicDescription audioDescription = source->audioDescription.mSampleRate ? source->audioDescription : THIS->_clientFormat;
-    source->skipFadeBuffer = malloc(sizeof(AudioBufferList)+((audioDescription.mFormatFlags & kAudioFormatFlagIsNonInterleaved ? audioDescription.mChannelsPerFrame-1 : 0)*sizeof(AudioBuffer)));
+    source->skipFadeBuffer = (AudioBufferList*)malloc(sizeof(AudioBufferList)+((audioDescription.mFormatFlags & kAudioFormatFlagIsNonInterleaved ? audioDescription.mChannelsPerFrame-1 : 0)*sizeof(AudioBuffer)));
     source->skipFadeBuffer->mNumberBuffers = audioDescription.mFormatFlags & kAudioFormatFlagIsNonInterleaved ? audioDescription.mChannelsPerFrame : 1;
     for ( int i=0; i<source->skipFadeBuffer->mNumberBuffers; i++ ) {
         source->skipFadeBuffer->mBuffers[i].mNumberChannels = audioDescription.mFormatFlags & kAudioFormatFlagIsNonInterleaved ? 1 : audioDescription.mChannelsPerFrame;

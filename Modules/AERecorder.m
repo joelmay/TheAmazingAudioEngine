@@ -94,7 +94,7 @@ void AERecorderStartRecording(AERecorder* THIS) {
 
 struct reportError_t { AERecorder *THIS; OSStatus result; };
 static void reportError(AEAudioController *audioController, void *userInfo, int length) {
-    struct reportError_t *arg = userInfo;
+    struct reportError_t *arg = (struct reportError_t *)userInfo;
     NSError *error = [NSError errorWithDomain:NSOSStatusErrorDomain 
                                          code:arg->result
                                      userInfo:[NSDictionary dictionaryWithObject:[NSString stringWithFormat:NSLocalizedString(@"Error while saving audio: Code %d", @""), arg->result]
@@ -129,9 +129,11 @@ static void audioCallback(id                        receiver,
     if ( bufferLength > 0 ) {
         OSStatus status = AEAudioFileWriterAddAudio(THIS->_writer, THIS->_buffer, bufferLength);
         if ( status != noErr ) {
+            struct reportError_t rerr{ .THIS = THIS, .result = status };
             AEAudioControllerSendAsynchronousMessageToMainThread(audioController, 
-                                                                 reportError, 
-                                                                 &(struct reportError_t) { .THIS = THIS, .result = status }, 
+                                                                 reportError,
+                                                                 &rerr,
+                                                                 //&(struct reportError_t) { .THIS = THIS, .result = status },
                                                                  sizeof(struct reportError_t));
         }
     }

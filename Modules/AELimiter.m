@@ -393,7 +393,7 @@ static element_t findMaxValueInRange(AELimiter *THIS, AudioBufferList *dequeuedB
               TPCircularBufferNextBufferListAfter(&THIS->_buffer, buffer, NULL);
     }
     
-    return (element_t) { .value = max, .index = index};
+    return (element_t) { .value = max, .index = static_cast<int>(index)};
 }
 
 @end

@@ -31,12 +31,16 @@
 
 extern NSString * ABConnectionsChangedNotification;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define ABMetadataBlockList void*
 typedef NSUInteger ABInputPortAttributes;
 void ABInputPortReceive(ABInputPort *inputPort, ABPort *sourcePortOrNil, AudioBufferList *bufferList, UInt32 *ioLengthInFrames, AudioTimeStamp *outTimestamp, ABMetadataBlockList *ioMetadataBlockList);
 void ABInputPortReceiveLive(ABInputPort *inputPort, AudioBufferList *bufferList, UInt32 lengthInFrames, AudioTimeStamp *outTimestamp);
 UInt32 ABInputPortPeek(ABInputPort *inputPort, AudioTimeStamp *outNextTimestamp);
-BOOL ABInputPortIsConnected(ABInputPort *inputPort);
+BOOL ABInputPortIsConnected(ABInputPort *inputPort); 
 BOOL ABOutputPortSendAudio(ABOutputPort* outputPort, const AudioBufferList *audio, UInt32 lengthInFrames, const AudioTimeStamp *timestamp, ABMetadataBlockList *metadata);
 BOOL ABOutputPortIsConnected(ABOutputPort *outputPort);
 ABInputPortAttributes ABOutputPortGetConnectedPortAttributes(ABOutputPort *outputPort);
@@ -55,3 +59,10 @@ enum {
     ABInputPortAttributePlaysLiveAudio  = 0x1  //!< The receiver will play the received audio out loud, live.
                                                //!< Connected senders should mute their output.
 };
+    
+#ifdef __cplusplus
+}
+#endif
+    
+    
+
