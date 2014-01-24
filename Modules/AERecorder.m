@@ -129,7 +129,8 @@ static void audioCallback(id                        receiver,
     if ( bufferLength > 0 ) {
         OSStatus status = AEAudioFileWriterAddAudio(THIS->_writer, THIS->_buffer, bufferLength);
         if ( status != noErr ) {
-            struct reportError_t rerr{ .THIS = THIS, .result = status };
+            //struct reportError_t rerr{ .THIS = THIS, .result = status };
+            struct reportError_t rerr = { THIS, status };
             AEAudioControllerSendAsynchronousMessageToMainThread(audioController, 
                                                                  reportError,
                                                                  &rerr,

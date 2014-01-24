@@ -461,11 +461,20 @@ void AEMixerBufferDequeue(AEMixerBuffer *THIS, AudioBufferList *bufferList, UInt
         THIS->_currentSliceFrameCount -= frames;
         
         if ( THIS->_audioConverter ) {
+            
             // Convert output into client format
-            struct fillComplexBufferInputProc_t proc{
-                .bufferList = intermediateBufferList,
-                .frames = frames
-            };
+            // TODO: Figure out how to use the newer initialization.
+//            struct fillComplexBufferInputProc_t proc;
+//            proc.bufferList = intermediateBufferList;
+//            proc.frames = frames;
+            
+            struct fillComplexBufferInputProc_t proc = { intermediateBufferList, frames };
+            
+//            struct fillComplexBufferInputProc_t proc{
+//                .bufferList = intermediateBufferList,
+//                .frames = frames
+//            };
+            
             OSStatus result = AudioConverterFillComplexBuffer(THIS->_audioConverter, 
                                                               fillComplexBufferInputProc,
                                                               &proc,

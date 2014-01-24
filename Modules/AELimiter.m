@@ -42,6 +42,8 @@ typedef enum {
 typedef struct {
     float value;
     int index;
+    
+//    element_t(float v, int i) : value(v), index(i) {};
 } element_t;
 
 static inline int min(int a, int b) { return a>b ? b : a; }
@@ -393,7 +395,12 @@ static element_t findMaxValueInRange(AELimiter *THIS, AudioBufferList *dequeuedB
               TPCircularBufferNextBufferListAfter(&THIS->_buffer, buffer, NULL);
     }
     
-    return (element_t) { .value = max, .index = static_cast<int>(index)};
+    //element_t  val = { max, static_cast<int>(index)};
+    element_t  retval = { max, (int)index};
+    return retval;
+//    return element_t(max,(int)index);
+    //return struct element_t  val = { max, static_cast<int>(index)};
+    //return (element_t) { .value = max, .index = static_cast<int>(index)};
 }
 
 @end
